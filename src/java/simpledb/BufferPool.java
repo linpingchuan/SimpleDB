@@ -3,6 +3,7 @@ package simpledb;
 import java.io.*;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * BufferPool manages the reading and writing of pages into memory from
@@ -25,13 +26,23 @@ public class BufferPool {
      * constructor instead. */
     public static final int DEFAULT_PAGES = 50;
 
+    private final int numPages;
+    private final Page[] pool;
+    private final ConcurrentHashMap<PageId, Integer> idMap;
+
+    private final AtomicInteger freeIndex; // current free page index in pool.
+
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
      * @param numPages Maximum number of pages in this buffer pool.
      */
     public BufferPool(int numPages) {
-        // some code goes here
+        this.numPages = numPages;
+        this.pool = new Page[numPages];
+        this.idMap = new ConcurrentHashMap<PageId, Integer>();
+
+        this.freeIndex = new AtomicInteger();
     }
     
     public static int getPageSize() {
@@ -58,8 +69,25 @@ public class BufferPool {
      */
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+
+        Integer poolIndex = idMap.get(pid);
+        int freeIndex;
+        Page page;
+
+        if (poolIndex != null) {
+            return pool[poolIndex];
+        } else if (freeIndex.get() >= numPages) {
+            // TODO: eviction.
+            throw new DbException("buffer pool is full");
+        }
+
+        freeIndex = this.freeIndex.getAndIncrement();
+        page = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
+
+        pool[freeIndex] = page;
+        idMap.put(pid, freeIndex);
+
+        return page;
     }
 
     /**
@@ -167,6 +195,7 @@ public class BufferPool {
 
     /**
      * Remove the specific page id from the buffer pool.
+     *
      * Needed by the recovery manager to ensure that the buffer pool doesn't
      * keep a rolled back page in its cache.
      */
@@ -185,7 +214,7 @@ public class BufferPool {
         // not necessary for lab1
     }
 
-    /** Write all pages of the specified transaction to disk.  */
+    /** Write all pages of the specified transaction to disk. */
     public synchronized void flushPages(TransactionId tid) throws IOException {
         // some code goes here
         // not necessary for lab1|lab2
