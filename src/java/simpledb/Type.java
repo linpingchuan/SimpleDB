@@ -24,10 +24,11 @@ public enum Type implements Serializable {
             }
         }
 
-    }, STRING_TYPE() {
+    },
+    STRING_TYPE() {
         @Override
         public int getLen() {
-            return STRING_LEN+4;
+            return STRING_LEN + 4;
         }
 
         @Override
@@ -46,18 +47,19 @@ public enum Type implements Serializable {
     
     public static final int STRING_LEN = 128;
 
-  /**
-   * @return the number of bytes required to store a field of this type.
-   */
+    /**
+     * @return The number of bytes required to store a field of this type.
+     */
     public abstract int getLen();
 
-  /**
-   * @return a Field object of the same type as this object that has contents
-   *   read from the specified DataInputStream.
-   * @param dis The input stream to read from
-   * @throws ParseException if the data read from the input stream is not
-   *   of the appropriate type.
-   */
+    /**
+     * @return A Field object of the same type as this object that has contents
+     * read from the specified DataInputStream.
+     *
+     * @param dis The input stream to read from.
+     *
+     * @throws ParseException If the data read from the input stream is not
+     * of the appropriate type.
+     */
     public abstract Field parse(DataInputStream dis) throws ParseException;
-
 }
