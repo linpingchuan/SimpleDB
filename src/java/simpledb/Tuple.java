@@ -12,7 +12,7 @@ public class Tuple implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private TupleDesc tupleDesc = null;
+    private TupleDesc tupled = null;
     private ArrayList<Field> fields = null;
     private RecordId recordId = null;
 
@@ -22,15 +22,15 @@ public class Tuple implements Serializable {
      * @param td The schema of this tuple. It must be a valid TupleDesc instance
      * with at least one field.
      */
-    public Tuple(TupleDesc td) {
-        resetTupleDesc(td);
+    public Tuple(TupleDesc tupled) {
+        resetTupleDesc(tupled);
     }
 
     /**
      * @return The TupleDesc representing the schema of this tuple.
      */
     public TupleDesc getTupleDesc() {
-        return tupleDesc;
+        return tupled;
     }
 
     /**
@@ -44,10 +44,10 @@ public class Tuple implements Serializable {
     /**
      * Set the RecordId information for this tuple.
      * 
-     * @param rid The new RecordId for this tuple.
+     * @param recordId The new RecordId for this tuple.
      */
-    public void setRecordId(RecordId rid) {
-        recordId = rid;
+    public void setRecordId(RecordId recordId) {
+        this.recordId = recordId;
     }
 
     /**
@@ -97,12 +97,12 @@ public class Tuple implements Serializable {
     /**
      * Reset the TupleDesc of this tuple.
      * */
-    public void resetTupleDesc(TupleDesc td) {
-        tupleDesc = td;
+    public void resetTupleDesc(TupleDesc tupled) {
+        this.tupled = tupled;
 
-        fields = new ArrayList<Field>(tupleDesc.numFields());
-        for (int i = 0; i < tupleDesc.numFields(); ++i) {
-            fields.add(null);
+        this.fields = new ArrayList<Field>(tupled.numFields());
+        for (int i = 0; i < tupled.numFields(); ++i) {
+            this.fields.add(null);
         }
     }
 }

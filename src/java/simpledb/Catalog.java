@@ -38,8 +38,8 @@ public class Catalog {
      * Constructor. Creates a new, empty catalog.
      */
     public Catalog() {
-        db = new ConcurrentHashMap<Integer, DbInfo>();
-        nameMap = new ConcurrentHashMap<String, Integer>();
+        this.db = new ConcurrentHashMap<Integer, DbInfo>();
+        this.nameMap = new ConcurrentHashMap<String, Integer>();
     }
 
     /**

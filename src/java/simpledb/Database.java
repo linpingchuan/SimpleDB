@@ -6,8 +6,8 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Database is a class that initializes several static variables used by the
  * database system (the catalog, the buffer pool, and the log files, in
- * particular.)
- * <p>
+ * particular).
+ *
  * Provides a set of methods that can be used to access these variables from
  * anywhere.
  * 
@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class Database {
     private static AtomicReference<Database> _instance = new AtomicReference<Database>(new Database());
+
     private final Catalog _catalog;
     private final BufferPool _bufferpool;
 
@@ -35,27 +36,27 @@ public class Database {
         // startControllerThread();
     }
 
-    /** Return the log file of the static Database instance */
+    /** Return the log file of the static Database instance. */
     public static LogFile getLogFile() {
         return _instance.get()._logfile;
     }
 
-    /** Return the buffer pool of the static Database instance */
+    /** Return the buffer pool of the static Database instance. */
     public static BufferPool getBufferPool() {
         return _instance.get()._bufferpool;
     }
 
-    /** Return the catalog of the static Database instance */
+    /** Return the catalog of the static Database instance. */
     public static Catalog getCatalog() {
         return _instance.get()._catalog;
     }
 
     /**
-     * Method used for testing -- create a new instance of the buffer pool and
-     * return it
+     * Method used for testing. Create a new instance of the buffer pool and
+     * return it.
      */
     public static BufferPool resetBufferPool(int pages) {
-        java.lang.reflect.Field bufferPoolF=null;
+        java.lang.reflect.Field bufferPoolF = null;
         try {
             bufferPoolF = Database.class.getDeclaredField("_bufferpool");
             bufferPoolF.setAccessible(true);
@@ -73,9 +74,8 @@ public class Database {
         return _instance.get()._bufferpool;
     }
 
-    // reset the database, used for unit tests only.
+    // Reset the database, used for unit tests only.
     public static void reset() {
         _instance.set(new Database());
     }
-
 }
