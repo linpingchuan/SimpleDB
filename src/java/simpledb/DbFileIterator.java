@@ -1,4 +1,5 @@
 package simpledb;
+
 import java.util.*;
 
 /**
@@ -14,7 +15,7 @@ public interface DbFileIterator {
      */
     public void open() throws DbException, TransactionAbortedException;
 
-    /** @return True if there are more tuples available. */
+    /** Returns true if there are more tuples available. */
     public boolean hasNext() throws DbException, TransactionAbortedException;
 
     /**
@@ -35,8 +36,6 @@ public interface DbFileIterator {
      */
     public void rewind() throws DbException, TransactionAbortedException;
 
-    /**
-     * Closes the iterator.
-     */
+    /** Closes the iterator. */
     public void close();
 }

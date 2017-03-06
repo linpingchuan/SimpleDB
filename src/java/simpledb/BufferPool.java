@@ -68,7 +68,7 @@ public class BufferPool {
      * @param perm The requested permissions on the page.
      */
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
-        throws TransactionAbortedException, DbException {
+          throws TransactionAbortedException, DbException {
 
         Integer poolIndex = idMap.get(pid);
         int freeIndex;
@@ -76,7 +76,7 @@ public class BufferPool {
 
         if (poolIndex != null) {
             return pool[poolIndex];
-        } else if (freeIndex.get() >= numPages) {
+        } else if (this.freeIndex.get() >= numPages) {
             // TODO: eviction.
             throw new DbException("buffer pool is full");
         }

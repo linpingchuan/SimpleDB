@@ -17,7 +17,7 @@ public interface DbFile {
      *
      * @throws IllegalArgumentException If the page does not exist in this file.
      */
-    public Page readPage(PageId id);
+    public Page readPage(PageId id) throws IllegalArgumentException;
 
     /**
      * Push the specified page to disk.
@@ -26,7 +26,6 @@ public interface DbFile {
      * into the file where the page should be written.
      *
      * @throws IOException If the write fails.
-     *
      */
     public void writePage(Page p) throws IOException;
 

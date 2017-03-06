@@ -335,12 +335,10 @@ public class HeapPage implements Page {
             }
         }
 
-        @Override
         public boolean hasNext() {
             return index < hp.numSlots;
         }
 
-        @Override
         public Tuple next() {
             if (index >= hp.numSlots) {
                 return null;
@@ -350,7 +348,6 @@ public class HeapPage implements Page {
             return v;
         }
 
-        @Override
         public void remove() {
             throw new UnsupportedOperationException();
         }
