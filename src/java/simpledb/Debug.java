@@ -4,7 +4,7 @@ package simpledb;
 /**
  * Debug is a utility class that wraps println statements and allows
  * more or less command line output to be turned on.
- * <p>
+ *
  * Change the value of the DEBUG_LEVEL constant using a system property:
  * simpledb.Debug. For example, on the command line, use -Dsimpledb.Debug=x,
  * or simply -Dsimpledb.Debug to enable it at level 0.
@@ -15,16 +15,16 @@ package simpledb;
 public class Debug {
   private static final int DEBUG_LEVEL;
   static {
-      String debug = System.getProperty("simpledb.Debug");
-      if (debug == null) {
-          // No system property = disabled
-          DEBUG_LEVEL = -1;
-      } else if (debug == "") {
-          // Empty property = level 0
-          DEBUG_LEVEL = 0;
-      } else {
-          DEBUG_LEVEL = Integer.parseInt(debug);
-      }
+    String debug = System.getProperty("simpledb.Debug");
+    if (debug == null) {
+      // No system property = disabled.
+      DEBUG_LEVEL = -1;
+    } else if (debug == "") {
+      // Empty property = level 0.
+      DEBUG_LEVEL = 0;
+    } else {
+      DEBUG_LEVEL = Integer.parseInt(debug);
+    }
   }
 
   private static final int DEFAULT_LEVEL = 0;
@@ -37,12 +37,12 @@ public class Debug {
     }
   }
 
-  /** @return true if level is being logged. */
+  /** Returns true if level is being logged. */
   public static boolean isEnabled(int level) {
     return level <= DEBUG_LEVEL;
   }
 
-  /** @return true if the default level is being logged. */
+  /** Returns true if the default level is being logged. */
   public static boolean isEnabled() {
     return isEnabled(DEFAULT_LEVEL);
   }

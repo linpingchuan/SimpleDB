@@ -4,36 +4,36 @@ package simpledb;
 
 public interface PageId {
 
-    /** 
-     * Returns a representation of this page id object as a collection of
-     * integers (used for logging).
-     * 
-     * This class MUST have a constructor that accepts n integer parameters,
-     * where n is the number of integers returned in the array from serialize.
-     */
-    public int[] serialize();
+  /** 
+   * Returns a representation of this page id object as a collection of
+   * integers (used for logging).
+   * 
+   * This class MUST have a constructor that accepts n integer parameters,
+   * where n is the number of integers returned in the array from serialize.
+   */
+  public int[] serialize();
 
-    /** @return The unique tableid hashcode with this PageId. */
-    public int getTableId();
+  /** @return The unique tableid hashcode with this PageId. */
+  public int getTableId();
 
-    /**
-     * Returns a hash code for this page, represented by the concatenation of
-     * the table number and the page number (needed if a PageId is used as a
-     * key in a hash table in the BufferPool, for example).
-     *
-     * @see BufferPool.
-     */
-    public int hashCode();
+  /**
+   * Returns a hash code for this page, represented by the concatenation of
+   * the table number and the page number (needed if a PageId is used as a
+   * key in a hash table in the BufferPool, for example).
+   *
+   * @see BufferPool.
+   */
+  public int hashCode();
 
-    /**
-     * Compares one PageId to another.
-     *
-     * @param o The object to compare against (must be a PageId).
-     *
-     * @return True if the objects are equal (e.g., page numbers and table
-     * ids are the same).
-     */
-    public boolean equals(Object o);
+  /**
+   * Compares one PageId to another.
+   *
+   * @param o The object to compare against (must be a PageId).
+   *
+   * @return True if the objects are equal (e.g., page numbers and table
+   * ids are the same).
+   */
+  public boolean equals(Object o);
 
-    public int pageNumber();
+  public int pageNumber();
 }

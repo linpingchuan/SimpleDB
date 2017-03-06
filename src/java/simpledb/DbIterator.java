@@ -6,7 +6,7 @@ import java.util.*;
 /**
  * DbIterator is the iterator interface that all SimpleDB operators should
  * implement. If the iterator is not open, none of the methods should work,
- * and should throw an IllegalStateException.  In addition to any
+ * and should throw an IllegalStateException. In addition to any
  * resource allocation/deallocation, an open method should call any
  * child iterator open methods, and in a close method, an iterator
  * should call its children's close methods.
@@ -17,8 +17,7 @@ public interface DbIterator extends Serializable {
 
    * @throws DbException When there are problems opening/accessing the database.
    */
-  public void open()
-      throws DbException, TransactionAbortedException;
+  public void open() throws DbException, TransactionAbortedException;
 
   /**
    * Returns true if the iterator has more tuples.
