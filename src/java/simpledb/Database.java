@@ -36,17 +36,17 @@ public class Database {
         // startControllerThread();
     }
 
-    /** Return the log file of the static Database instance. */
+    /** Returns the log file of the static Database instance. */
     public static LogFile getLogFile() {
         return _instance.get()._logfile;
     }
 
-    /** Return the buffer pool of the static Database instance. */
+    /** Returns the buffer pool of the static Database instance. */
     public static BufferPool getBufferPool() {
         return _instance.get()._bufferpool;
     }
 
-    /** Return the catalog of the static Database instance. */
+    /** Returns the catalog of the static Database instance. */
     public static Catalog getCatalog() {
         return _instance.get()._catalog;
     }

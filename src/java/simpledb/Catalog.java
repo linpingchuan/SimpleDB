@@ -83,7 +83,7 @@ public class Catalog {
     }
 
     /**
-     * Return the id of the table with a specified name.
+     * Returns the id of the table with a specified name.
      *
      * @throws NoSuchElementException If the table doesn't exist.
      */

@@ -5,7 +5,7 @@ package simpledb;
 public interface PageId {
 
     /** 
-     * Return a representation of this page id object as a collection of
+     * Returns a representation of this page id object as a collection of
      * integers (used for logging).
      * 
      * This class MUST have a constructor that accepts n integer parameters,
@@ -17,7 +17,7 @@ public interface PageId {
     public int getTableId();
 
     /**
-     * @return A hash code for this page, represented by the concatenation of
+     * Returns a hash code for this page, represented by the concatenation of
      * the table number and the page number (needed if a PageId is used as a
      * key in a hash table in the BufferPool, for example).
      *

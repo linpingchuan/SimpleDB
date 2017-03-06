@@ -13,7 +13,7 @@ package simpledb;
 public interface Page {
 
     /**
-     * Return the id of this page. The id is a unique identifier for a page
+     * Returns the id of this page. The id is a unique identifier for a page
      * that can be used to look up the page on disk or determine if the page
      * is resident in the buffer pool.
      *
