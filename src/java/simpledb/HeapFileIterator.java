@@ -66,13 +66,9 @@ public class HeapFileIterator implements DbFileIterator {
         return tupleIter.next();
     }
 
-    /**
-     * Resets the iterator to the start.
-     *
-     * @throws DbException When rewind is unsupported.
-     */
+    /** Resets the iterator to the start. */
     public void rewind() throws DbException, TransactionAbortedException {
-        throw new DbException("rewind is unsupported.");
+        open();
     }
 
     /** Closes the iterator. */
