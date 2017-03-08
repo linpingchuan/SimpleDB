@@ -1,7 +1,6 @@
 package simpledb;
 
 import java.io.*;
-
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -18,7 +17,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class BufferPool {
   /** Bytes per page, including header. */
-  private static final int PAGE_SIZE = 4096;
+  public static final int PAGE_SIZE = 4096;
+
+  private static int pageSize = PAGE_SIZE;
 
   /**
    * Default number of pages passed to the constructor. This is used by
@@ -47,6 +48,11 @@ public class BufferPool {
   
   public static int getPageSize() {
     return PAGE_SIZE;
+  }
+
+  // THIS FUNCTION SHOULD ONLY BE USED FOR TESTING!!
+  public static void setPageSize(int pageSize) {
+    BufferPool.pageSize = pageSize;
   }
 
   /**
@@ -140,10 +146,10 @@ public class BufferPool {
   }
 
   /**
-   * Add a tuple to the specified table behalf of transaction tid. 
-   * Will acquire a write lock on the page the tuple is added to (Lock 
-   * acquisition is not needed for lab2). May block if the lock cannot 
-   * be acquired.
+   * Add a tuple to the specified table on behalf of transaction tid.
+   * Will acquire a write lock on the page the tuple is added to and any other 
+   * pages that are updated (Lock acquisition is not needed for lab2). 
+   * May block if the lock(s) cannot be acquired.
    * 
    * Marks any pages that were dirtied by the operation as dirty by calling
    * their markDirty bit, and updates cached versions of any pages that have 
@@ -164,20 +170,19 @@ public class BufferPool {
   /**
    * Remove the specified tuple from the buffer pool.
    *
-   * Will acquire a write lock on the page the tuple is removed from. May
-   * block if the lock cannot be acquired.
+   * Will acquire a write lock on the page the tuple is removed from and any
+   * other pages that are updated. May block if the lock(s) cannot be acquired.
    *
    * Marks any pages that were dirtied by the operation as dirty by calling
-   * their markDirty bit.  Does not need to update cached versions of any
-   * pages that have been dirtied, as it is not possible that a new page was
-   * created during the deletion (note difference from addTuple).
+   * their markDirty bit, and updates cached versions of any pages that have 
+   * been dirtied so that future requests see up-to-date pages. 
    *
    * @param tid The transaction deleting the tuple.
    *
    * @param t The tuple to delete.
    */
   public void deleteTuple(TransactionId tid, Tuple t)
-    throws DbException, TransactionAbortedException {
+    throws DbException, IOException, TransactionAbortedException {
     // some code goes here
     // not necessary for lab1
   }

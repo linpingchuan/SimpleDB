@@ -25,9 +25,9 @@ public class Catalog {
     public final String PrimaryKey;
 
     DbInfo(DbFile file, String name, String primaryKey) {
-      File = file;
-      Name = name;
-      PrimaryKey = primaryKey;
+      this.File = file;
+      this.Name = name;
+      this.PrimaryKey = primaryKey;
     }
   };
 
