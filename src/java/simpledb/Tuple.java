@@ -12,7 +12,7 @@ public class Tuple implements Serializable {
 
   private static final long serialVersionUID = 1L;
 
-  private TupleDesc tupled = null;
+  private TupleDesc td = null;
   private ArrayList<Field> fields = null;
   private RecordId recordId = null;
 
@@ -22,15 +22,15 @@ public class Tuple implements Serializable {
    * @param td The schema of this tuple. It must be a valid TupleDesc instance
    * with at least one field.
    */
-  public Tuple(TupleDesc tupled) {
-    resetTupleDesc(tupled);
+  public Tuple(TupleDesc td) {
+    resetTupleDesc(td);
   }
 
   /**
    * Returns the TupleDesc representing the schema of this tuple.
    */
   public TupleDesc getTupleDesc() {
-    return tupled;
+    return td;
   }
 
   /**
@@ -97,11 +97,11 @@ public class Tuple implements Serializable {
   /**
    * Reset the TupleDesc of this tuple.
    * */
-  public void resetTupleDesc(TupleDesc tupled) {
-    this.tupled = tupled;
+  public void resetTupleDesc(TupleDesc td) {
+    this.td = td;
 
-    this.fields = new ArrayList<Field>(tupled.numFields());
-    for (int i = 0; i < tupled.numFields(); ++i) {
+    this.fields = new ArrayList<Field>(td.numFields());
+    for (int i = 0; i < td.numFields(); ++i) {
       this.fields.add(null);
     }
   }
