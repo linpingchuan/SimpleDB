@@ -8,9 +8,10 @@ import java.util.*;
 public class Project extends Operator {
 
   private static final long serialVersionUID = 1L;
+
   private DbIterator child;
-  private TupleDesc td;
-  private ArrayList<Integer> outFieldIds;
+  private final TupleDesc td;
+  private final ArrayList<Integer> outFieldIds;
 
   /**
    * Constructor accepts a child operator to read tuples to apply projection
@@ -24,7 +25,7 @@ public class Project extends Operator {
    */
   public Project(ArrayList<Integer> fieldList, ArrayList<Type> typesList,
       DbIterator child) {
-    this(fieldList,typesList.toArray(new Type[]{}), child);
+    this(fieldList, typesList.toArray(new Type[]{}), child);
   }
   
   public Project(ArrayList<Integer> fieldList, Type[] types, DbIterator child) {
@@ -37,7 +38,7 @@ public class Project extends Operator {
     for (int i = 0; i < fieldAr.length; i++) {
       fieldAr[i] = childtd.getFieldName(fieldList.get(i));
     }
-    td = new TupleDesc(types, fieldAr);
+    this.td = new TupleDesc(types, fieldAr);
   }
 
   public TupleDesc getTupleDesc() {

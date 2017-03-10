@@ -56,7 +56,7 @@ public class OrderBy extends Operator {
     while (child.hasNext())
       childTups.add((Tuple) child.next());
     Collections.sort(childTups, new TupleComparator(orderByField, asc));
-    it = childTups.iterator();
+    it = childTups.iterator(); // Use sorted iterator instead of DbIterator.
     super.open();
   }
 
