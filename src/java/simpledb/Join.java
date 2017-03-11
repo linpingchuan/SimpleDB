@@ -11,6 +11,7 @@ public class Join extends Operator {
 
   private DbIterator child1;
   private DbIterator child2;
+  private DbIterator curChild2;
 
   private final TupleDesc td1;
   private final TupleDesc td2;
@@ -20,9 +21,10 @@ public class Join extends Operator {
 
   private Tuple lastTuple = null;
 
+  private HashMap<Field, ArrayList<Tuple>> map2;
+
   /**
-   * Constructor. Accepts to children to join and the predicate to join them
-   * on.
+   * Constructor. Accepts to children to join and the predicate to join them on.
    * 
    * @param p The predicate to use to join the children.
    *
@@ -49,7 +51,6 @@ public class Join extends Operator {
    * table name.
    * */
   public String getJoinField1Name() {
-    // TODO(foreverbell): Quantified by table name or alias?
     return td1.getFieldName(p.getField1());
   }
 
@@ -58,7 +59,6 @@ public class Join extends Operator {
    * table name.
    * */
   public String getJoinField2Name() {
-    // TODO(foreverbell): Quantified by table name or alias?
     return td2.getFieldName(p.getField2());
   }
 
@@ -70,15 +70,41 @@ public class Join extends Operator {
     return td;
   }
 
+  private void openImpl() throws DbException, TransactionAbortedException {
+    lastTuple = null;
+    map2 = null;
+    curChild2 = null;
+
+    if (child1.hasNext()) {
+      lastTuple = child1.next();
+    }
+
+    // If the predicate is comparing on two fields by equality, try
+    // accelerating it with HashMap instead of nested loop join.
+    if (p.getOperator() == Predicate.Op.EQUALS) {
+      map2 = new HashMap<Field, ArrayList<Tuple>>();
+
+      while (child2.hasNext()) {
+        Tuple t = child2.next();
+        Field field = t.getField(p.getField2());
+        ArrayList<Tuple> a = map2.get(field);
+
+        if (a == null) {
+          a = new ArrayList<Tuple>();
+          map2.put(field, a);
+        }
+        a.add(t);
+      }
+    }
+  }
+
   public void open() throws DbException, NoSuchElementException,
       TransactionAbortedException {
     child1.open();
     child2.open();
     super.open();
 
-    if (child1.hasNext()) {
-      lastTuple = child1.next();
-    }
+    openImpl();
   }
 
   public void close() {
@@ -87,15 +113,15 @@ public class Join extends Operator {
     child1.close();
 
     lastTuple = null;
+    map2 = null;
+    curChild2 = null;
   }
 
   public void rewind() throws DbException, TransactionAbortedException {
     child1.rewind();
     child2.rewind();
 
-    if (child1.hasNext()) {
-      lastTuple = child1.next();
-    }
+    openImpl();
   }
 
   /**
@@ -108,7 +134,7 @@ public class Join extends Operator {
    * are simply the concatenation of joining tuples from the left and right
    * relation. Therefore, if an equality predicate is used there will be two
    * copies of the join attribute in the results. (Removing such duplicate
-   * columns can be done with an additional projection operator if needed.)
+   * columns can be done with an additional projection operator if needed).
    *
    * For example, if one tuple is {1,2,3} and the other tuple is {1,5,6},
    * joined on equality of the first column, then this returns {1,2,3,1,5,6}.
@@ -119,8 +145,19 @@ public class Join extends Operator {
    */
   protected Tuple fetchNext() throws TransactionAbortedException, DbException {
     while (lastTuple != null) {
-      while (child2.hasNext()) {
-        Tuple tuple2 = child2.next();
+      if (map2 != null) {
+        if (curChild2 == null) {
+          ArrayList<Tuple> a = map2.get(lastTuple.getField(p.getField1()));
+          if (a != null) {
+            curChild2 = new TupleIterator(td2, a);
+            curChild2.open();
+          }
+        }
+      } else {
+        curChild2 = child2;
+      }
+      while (curChild2 != null && curChild2.hasNext()) {
+        Tuple tuple2 = curChild2.next();
 
         if (p.filter(lastTuple, tuple2)) {
           Tuple newTuple = new Tuple(td);
@@ -134,8 +171,10 @@ public class Join extends Operator {
           return newTuple;
         }
       }
+
       if (child1.hasNext()) {
         lastTuple = child1.next();
+        curChild2 = null;
         child2.rewind();
       } else {
         return null;

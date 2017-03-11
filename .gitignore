@@ -1,5 +1,10 @@
 bin/
+dist/
 log
+
+*.dat
+*.txt
+*.schema
 
 .classpath
 .project
