@@ -2,6 +2,7 @@ package simpledb;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * HeapFile is an implementation of a DbFile that stores a collection of tuples
@@ -16,8 +17,7 @@ public class HeapFile implements DbFile {
 
   private final File f;
   private final TupleDesc td;
-
-  private int numPages;
+  private final AtomicInteger numPages;
 
   /**
    * Constructs a heap file backed by the specified file.
@@ -30,7 +30,7 @@ public class HeapFile implements DbFile {
 
     this.f = f;
     this.td = td;
-    this.numPages = ((int) f.length() + pageSize - 1) / pageSize;
+    this.numPages = new AtomicInteger(((int) f.length() + pageSize - 1) / pageSize);
   }
 
   /**
@@ -98,7 +98,7 @@ public class HeapFile implements DbFile {
    * Returns the number of pages in this HeapFile.
    */
   public int numPages() {
-    return numPages;
+    return numPages.get();
   }
 
   // See DbFile.java for javadocs.
@@ -107,7 +107,7 @@ public class HeapFile implements DbFile {
     int tableId = getId();
     ArrayList<Page> ret = new ArrayList<Page>();
 
-    for (int i = 0; i < numPages; ++i) {
+    for (int i = 0; i < numPages.get(); ++i) {
       HeapPage page = (HeapPage) Database.getBufferPool().getPage(tid,
           new HeapPageId(tableId, i), Permissions.READ_WRITE);
 
@@ -119,9 +119,9 @@ public class HeapFile implements DbFile {
     }
 
     // No slots for any page, try to allocate a new one.
-    numPages += 1;
+    int newPageIndex = numPages.getAndIncrement();
     HeapPage page = (HeapPage) Database.getBufferPool().getPage(tid,
-        new HeapPageId(tableId, numPages - 1), Permissions.READ_WRITE);
+        new HeapPageId(tableId, newPageIndex), Permissions.READ_WRITE);
     page.insertTuple(t);
     ret.add(page);
 

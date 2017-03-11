@@ -111,7 +111,8 @@ public class BufferPool {
 
   /**
    * Returns true if the specified transaction has a lock on the specified
-   * page. */
+   * page.
+   * */
   public boolean holdsLock(TransactionId tid, PageId p) {
     // some code goes here
     // not necessary for lab1|lab2
@@ -134,6 +135,7 @@ public class BufferPool {
 
   /**
    * Add a tuple to the specified table on behalf of transaction tid.
+   *
    * Will acquire a write lock on the page the tuple is added to and any other 
    * pages that are updated (Lock acquisition is not needed for lab2). 
    * May block if the lock(s) cannot be acquired.
@@ -240,13 +242,15 @@ public class BufferPool {
       return;
     }
 
-    PageId firstpid = pool.entrySet().iterator().next().getKey();
+    while (pool.size() >= numPages) {
+      PageId firstpid = pool.entrySet().iterator().next().getKey();
 
-    try {
-      flushPage(firstpid);
-    } catch (IOException e) {
-      e.printStackTrace();
+      try {
+        flushPage(firstpid);
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+      pool.remove(firstpid);
     }
-    pool.remove(firstpid);
   }
 }
