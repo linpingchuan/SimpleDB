@@ -2,6 +2,7 @@ package simpledb;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -19,6 +20,7 @@ public class BufferPool {
   /** Bytes per page, including header. */
   public static final int PAGE_SIZE = 4096;
 
+  // TODO(foreverbell): Why this variable is unused?
   private static int pageSize = PAGE_SIZE;
 
   /**
@@ -27,8 +29,74 @@ public class BufferPool {
    * constructor instead. */
   public static final int DEFAULT_PAGES = 50;
 
+  private enum LockType {
+    NO_LOCK,
+    SHARED_LOCK,
+    EXCLUSIVE_LOCK,
+  };
+
+  private class LockState {
+    private LockType type;
+
+    // HashSet of Owners for different locks:
+    //  * NO_LOCK, == 0;
+    //  * SHARED_LOCK, > 0;
+    //  * EXCLUSIVE_LOCK, == 1.
+    private final HashSet<TransactionId> owners;
+
+    public LockState() {
+      this.type = LockType.NO_LOCK;
+      this.owners = new HashSet<TransactionId>();
+    }
+
+    public synchronized boolean holdsLock(TransactionId tid) {
+      return owners.contains(tid);
+    }
+
+    public synchronized void release(TransactionId tid) {
+      if (type == LockType.EXCLUSIVE_LOCK) {
+        if (owners.contains(tid)) {
+          owners.clear();
+          type = LockType.NO_LOCK;
+        }
+      } else if (type == LockType.SHARED_LOCK) {
+        owners.remove(tid);
+        if (owners.isEmpty()) {
+          type = LockType.NO_LOCK;
+        }
+      }
+    }
+
+    public synchronized boolean acquireAsShared(TransactionId tid) {
+      if (type == LockType.NO_LOCK) {
+        type = LockType.SHARED_LOCK;
+      } else if (type == LockType.EXCLUSIVE_LOCK) {
+        return owners.contains(tid);
+      }
+      owners.add(tid);
+      return true;
+    }
+
+    public synchronized boolean acquireAsExclusive(TransactionId tid) {
+      if (type == LockType.EXCLUSIVE_LOCK) {
+        return owners.contains(tid);
+      } else if (type == LockType.SHARED_LOCK) {
+        if (owners.size() == 1 && owners.contains(tid)) {
+          type = LockType.EXCLUSIVE_LOCK; // Upgrade lock.
+          return true;
+        }
+        return false;
+      } else {
+        type = LockType.EXCLUSIVE_LOCK;
+        owners.add(tid);
+        return true;
+      }
+    }
+  };
+
   private final int numPages;
   private final ConcurrentHashMap<PageId, Page> pool;
+  private final ConcurrentHashMap<PageId, LockState> lock;
 
   /**
    * Creates a BufferPool that caches up to numPages pages.
@@ -38,6 +106,7 @@ public class BufferPool {
   public BufferPool(int numPages) {
     this.numPages = numPages;
     this.pool = new ConcurrentHashMap<PageId, Page>();
+    this.lock = new ConcurrentHashMap<PageId, LockState>();
   }
   
   public static int getPageSize() {
@@ -69,16 +138,44 @@ public class BufferPool {
    */
   public Page getPage(TransactionId tid, PageId pid, Permissions perm)
       throws TransactionAbortedException, DbException {
-    Page page = pool.get(pid);
+    Page page;
+    LockState lockstate;
+    boolean acquired = false;
 
-    if (page != null) {
-      return page;
-    } else if (pool.size() >= numPages) {
-      evictPage();
+    synchronized (this) {
+      page = pool.get(pid);
+      lockstate = lock.get(pid);
+
+      if (page != null) {
+        // Try to acquire the lock for this transaction.
+        if (perm == Permissions.READ_ONLY) {
+          acquired = lockstate.acquireAsShared(tid);
+        } else {
+          acquired = lockstate.acquireAsExclusive(tid);
+        }
+        if (!acquired) {
+          // TODO(foreverbell): Block this transaction rather than abort immediately.
+          throw new TransactionAbortedException();
+        }
+        lock.put(pid, lockstate);
+        return page;
+      } else if (pool.size() >= numPages) {
+        evictPage();
+      }
     }
 
     page = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
-    pool.put(pid, page);
+    lockstate = new LockState();
+    if (perm == Permissions.READ_ONLY) {
+      lockstate.acquireAsShared(tid);
+    } else {
+      lockstate.acquireAsExclusive(tid);
+    }
+
+    synchronized (this) {
+      pool.put(pid, page);
+      lock.put(pid, lockstate);
+    }
 
     return page;
   }
@@ -95,8 +192,11 @@ public class BufferPool {
    * @param pid The ID of the page to unlock.
    */
   public void releasePage(TransactionId tid, PageId pid) {
-    // some code goes here
-    // not necessary for lab1|lab2
+    LockState lockstate = lock.get(pid);
+
+    if (lockstate != null) {
+      lockstate.release(tid);
+    }
   }
 
   /**
@@ -114,9 +214,12 @@ public class BufferPool {
    * page.
    * */
   public boolean holdsLock(TransactionId tid, PageId p) {
-    // some code goes here
-    // not necessary for lab1|lab2
-    return false;
+    LockState lockstate = lock.get(p);
+
+    if (lockstate == null) {
+      return false;
+    }
+    return lockstate.holdsLock(tid);
   }
 
   /**
