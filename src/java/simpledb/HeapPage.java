@@ -4,7 +4,7 @@ import java.util.*;
 import java.io.*;
 
 /**
- * Each instance of HeapPage stores data for one page of HeapFiles and 
+ * Each instance of HeapPage stores data for one page of HeapFiles and
  * implements the Page interface that is used by BufferPool.
  *
  * @see HeapFile.
@@ -18,6 +18,8 @@ public class HeapPage implements Page {
   private final byte header[];
   private final Tuple tuples[];
   private final int numSlots;
+
+  private TransactionId lastDirty;
 
   private byte[] oldData;
   private final Byte oldDataLock = new Byte((byte) 0);
@@ -57,7 +59,7 @@ public class HeapPage implements Page {
     for (int i = 0; i < header.length; i++) {
       header[i] = dis.readByte();
     }
-    
+
     tuples = new Tuple[numSlots];
     try {
       // Allocate and read the actual records of this page.
@@ -73,7 +75,7 @@ public class HeapPage implements Page {
   }
 
   /** Retrieve the number of tuples on this page. */
-  private int getNumTuples() {    
+  private int getNumTuples() {
     return (BufferPool.getPageSize() * 8) / (td.getSize() * 8 + 1);
   }
 
@@ -81,10 +83,10 @@ public class HeapPage implements Page {
    * Computes the number of bytes in the header of a page in a HeapFile with
    * each tuple occupying tupleSize bytes.
    */
-  private int getHeaderSize() {    
+  private int getHeaderSize() {
     return (numSlots + 7) / 8;
   }
-  
+
   /** Returns a view of this page before it was modified. Used by recovery. */
   public HeapPage getBeforeImage(){
     try {
@@ -100,7 +102,7 @@ public class HeapPage implements Page {
     }
     return null;
   }
-  
+
   public void setBeforeImage() {
     synchronized(oldDataLock) {
       oldData = getPageData().clone();
@@ -186,7 +188,6 @@ public class HeapPage implements Page {
           } catch (IOException e) {
             e.printStackTrace();
           }
-
         }
         continue;
       }
@@ -246,8 +247,16 @@ public class HeapPage implements Page {
    * @param t The tuple to delete.
    */
   public void deleteTuple(Tuple t) throws DbException {
-    // some code goes here
-    // not necessary for lab1
+    RecordId rid = t.getRecordId();
+
+    if (rid.getPageId() != pid ||
+        rid.tupleno() < 0 || rid.tupleno() >= numSlots) {
+      throw new DbException("tuple is not on this page");
+    }
+    if (!isSlotUsed(rid.tupleno())) {
+      throw new DbException("tuple slot is already empty");
+    }
+    markSlotUsed(rid.tupleno(), false);
   }
 
   /**
@@ -260,8 +269,18 @@ public class HeapPage implements Page {
    * @param t The tuple to add.
    */
   public void insertTuple(Tuple t) throws DbException {
-    // some code goes here
-    // not necessary for lab1
+    if (!t.getTupleDesc().equals(td)) {
+      throw new DbException("TupleDesc is mismatch");
+    }
+    for (int i = 0; i < numSlots; ++i) {
+      if (!isSlotUsed(i)) {
+        markSlotUsed(i, true);
+        t.setRecordId(new RecordId(pid, i));
+        tuples[i] = t;
+        return;
+      }
+    }
+    throw new DbException("the page is full");
   }
 
   /**
@@ -269,8 +288,12 @@ public class HeapPage implements Page {
    * that did the dirtying.
    */
   public void markDirty(boolean dirty, TransactionId tid) {
-    // some code goes here
-    // not necessary for lab1
+    // TODO(foreverbell): FIXME FIXME.
+    if (dirty) {
+      lastDirty = tid;
+    } else {
+      lastDirty = null;
+    }
   }
 
   /**
@@ -278,9 +301,7 @@ public class HeapPage implements Page {
    * if the page is not dirty.
    */
   public TransactionId isDirty() {
-    // some code goes here
-    // Not necessary for lab1
-    return null;    
+    return lastDirty;
   }
 
   /**
@@ -308,8 +329,13 @@ public class HeapPage implements Page {
    * Abstraction to fill or clear a slot on this page.
    */
   private void markSlotUsed(int i, boolean value) {
-    // some code goes here
-    // not necessary for lab1
+    int n = i / 8, b = i % 8;
+
+    if (value) {
+      header[n] |= 1 << b;
+    } else {
+      header[n] &= ~(1 << b);
+    }
   }
 
   private class TupleIterator implements Iterator<Tuple> {

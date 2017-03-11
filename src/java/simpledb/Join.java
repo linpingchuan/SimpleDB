@@ -125,8 +125,6 @@ public class Join extends Operator {
         if (p.filter(lastTuple, tuple2)) {
           Tuple newTuple = new Tuple(td);
 
-          // TODO(foreverbell): Determine RecordId.
-          newTuple.setRecordId(lastTuple.getRecordId());
           for (int i = 0; i < td1.numFields(); ++i) {
             newTuple.setField(i, lastTuple.getField(i));
           }

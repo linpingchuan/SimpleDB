@@ -30,6 +30,7 @@ public class HeapFileIterator implements DbFileIterator {
     if (pageNo < 0 || pageNo >= hf.numPages()) {
       return null;
     }
+    // TODO(foreverbell): Permissions.READ_ONLY is okay?
     return (HeapPage) Database.getBufferPool()
       .getPage(tid, new HeapPageId(hf.getId(), pageNo), Permissions.READ_ONLY);
   }

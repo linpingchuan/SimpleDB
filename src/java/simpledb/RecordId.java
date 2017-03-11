@@ -19,7 +19,7 @@ public class RecordId implements Serializable {
    * 
    * @param pid The pageid of the page on which the tuple resides.
    *
-   * @param tupleno The tuple number within the page.
+   * @param tupleno The tuple number (a.k.a. slotId) within the page.
    */
   public RecordId(PageId pid, int tupleno) {
     this.pid = pid;

@@ -16,7 +16,8 @@ public class HeapFile implements DbFile {
 
   private final File f;
   private final TupleDesc td;
-  private final int numPages;
+
+  private int numPages;
 
   /**
    * Constructs a heap file backed by the specified file.
@@ -40,11 +41,13 @@ public class HeapFile implements DbFile {
   }
 
   /**
-   * Returns an ID uniquely identifying this HeapFile. Implementation note:
-   * you will need to generate this tableid somewhere ensure that each
-   * HeapFile has a "unique id," and that you always return the same value for
-   * a particular HeapFile. We suggest hashing the absolute file name of the
-   * file underlying the heapfile, i.e. f.getAbsoluteFile().hashCode().
+   * Returns an ID uniquely identifying this HeapFile (a.k.a. tableId).
+   *
+   * Implementation note: you will need to generate this tableid somewhere
+   * ensure that each HeapFile has a "unique id," and that you always return
+   * the same value for a particular HeapFile. We suggest hashing the absolute
+   * file name of the file underlying the heapfile, i.e.
+   * f.getAbsoluteFile().hashCode().
    * 
    * @return An ID uniquely identifying this HeapFile.
    */
@@ -62,13 +65,18 @@ public class HeapFile implements DbFile {
   // See DbFile.java for javadocs.
   public Page readPage(PageId pid) throws IllegalArgumentException {
     RandomAccessFile reader = null;
-    byte[] buffer = new byte[BufferPool.getPageSize()];
+    byte[] buffer = new byte[BufferPool.getPageSize()]; // all 0
 
     try {
+      int from = pid.pageNumber() * BufferPool.getPageSize();
+
       reader = new RandomAccessFile(f, "r");
-      reader.seek(pid.pageNumber() * BufferPool.getPageSize());
-      reader.read(buffer);
-      reader.close();
+      if (from < reader.length()) {
+        reader.seek(from);
+        reader.read(buffer);
+        reader.close();
+      }
+      // If the page to read exceeds file length, allocate a new empty page.
       return new HeapPage(new HeapPageId(pid.getTableId(), pid.pageNumber()), buffer);
     } catch (IOException e) {
       throw new IllegalArgumentException();
@@ -91,17 +99,41 @@ public class HeapFile implements DbFile {
   // See DbFile.java for javadocs.
   public ArrayList<Page> insertTuple(TransactionId tid, Tuple t)
       throws DbException, IOException, TransactionAbortedException {
-    // some code goes here
-    // not necessary for lab1
-    return null;
+    int tableId = getId();
+    ArrayList<Page> ret = new ArrayList<Page>();
+
+    for (int i = 0; i < numPages; ++i) {
+      HeapPage page = (HeapPage) Database.getBufferPool().getPage(tid,
+          new HeapPageId(tableId, i), Permissions.READ_WRITE);
+
+      if (page.getNumEmptySlots() > 0) {
+        page.insertTuple(t);
+        ret.add(page);
+        return ret;
+      }
+    }
+
+    // No slots for any page, try to allocate a new one.
+    numPages += 1;
+    HeapPage page = (HeapPage) Database.getBufferPool().getPage(tid,
+        new HeapPageId(tableId, numPages - 1), Permissions.READ_WRITE);
+    page.insertTuple(t);
+    ret.add(page);
+
+    return ret;
   }
 
   // See DbFile.java for javadocs.
   public ArrayList<Page> deleteTuple(TransactionId tid, Tuple t)
       throws DbException, IOException, TransactionAbortedException {
-    // some code goes here
-    // not necessary for lab1
-    return null;
+    ArrayList<Page> ret = new ArrayList<Page>();
+    HeapPage page = (HeapPage) Database.getBufferPool().getPage(tid,
+        t.getRecordId().getPageId(), Permissions.READ_WRITE);
+
+    page.deleteTuple(t);
+    ret.add(page);
+
+    return ret;
   }
 
   // See DbFile.java for javadocs.
