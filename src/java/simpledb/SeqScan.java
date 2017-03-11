@@ -93,7 +93,7 @@ public class SeqScan implements DbIterator {
 
     for (int i = 0; i < td.numFields(); ++i) {
       typeAr[i] = td.getFieldType(i);
-      fieldAr[i] = tableAlias + td.getFieldName(i);
+      fieldAr[i] = tableAlias + "." + td.getFieldName(i);
     }
 
     return new TupleDesc(typeAr, fieldAr);

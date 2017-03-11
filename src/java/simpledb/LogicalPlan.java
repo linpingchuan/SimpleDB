@@ -26,8 +26,8 @@ public class LogicalPlan {
   private Vector<LogicalJoinNode> joins;
   private Vector<LogicalScanNode> tables;
   private Vector<LogicalFilterNode> filters;
-  private HashMap<String,DbIterator> subplanMap;
-  private HashMap<String,Integer> tableMap;
+  private HashMap<String, DbIterator> subplanMap;
+  private HashMap<String, Integer> tableMap;
 
   private Vector<LogicalSelectListNode> selectList;
   private String groupByField = null;
@@ -44,8 +44,8 @@ public class LogicalPlan {
     joins = new Vector<LogicalJoinNode>();
     filters = new Vector<LogicalFilterNode>();
     tables = new Vector<LogicalScanNode>();
-    subplanMap = new HashMap<String,DbIterator>();
-    tableMap = new HashMap<String,Integer>();
+    subplanMap = new HashMap<String, DbIterator>();
+    tableMap = new HashMap<String, Integer>();
 
     selectList = new Vector<LogicalSelectListNode>();
     this.query = new String();
@@ -81,7 +81,7 @@ public class LogicalPlan {
     return tableMap.get(alias);
   }
   
-  public HashMap<String,Integer> getTableAliasToIdMapping() {
+  public HashMap<String, Integer> getTableAliasToIdMapping() {
     return this.tableMap;
   }
 
@@ -165,7 +165,7 @@ public class LogicalPlan {
     String table1 = joinField1.split("[.]")[0];
     String pureField = joinField1.split("[.]")[1];
 
-    LogicalSubplanJoinNode lj = new LogicalSubplanJoinNode(table1,pureField, joinField2, pred);
+    LogicalSubplanJoinNode lj = new LogicalSubplanJoinNode(table1, pureField, joinField2, pred);
     System.out.println("Added subplan join on " + joinField1);
     joins.addElement(lj);
   }
@@ -181,7 +181,7 @@ public class LogicalPlan {
    */
   public void addScan(int table, String name) {
     System.out.println("Added scan of table " + name);
-    tables.addElement(new LogicalScanNode(table,name));
+    tables.addElement(new LogicalScanNode(table, name));
     tableMap.put(name,table);
   }
 
@@ -327,7 +327,7 @@ public class LogicalPlan {
    *
    * @return A DbIterator representing this plan.
    */ 
-  public DbIterator physicalPlan(TransactionId t, Map<String,TableStats> baseTableStats, boolean explain)
+  public DbIterator physicalPlan(TransactionId t, Map<String, TableStats> baseTableStats, boolean explain)
       throws ParsingException {
     Iterator<LogicalScanNode> tableIt = tables.iterator();
     HashMap<String, String> equivMap = new HashMap<String, String>();
@@ -343,7 +343,7 @@ public class LogicalPlan {
         throw new ParsingException("Unknown table " + table.t);
       }
       
-      subplanMap.put(table.alias,ss);
+      subplanMap.put(table.alias, ss);
       String baseTableName = Database.getCatalog().getTableName(table.t);
       statsMap.put(baseTableName, baseTableStats.get(baseTableName));
       filterSelectivities.put(table.alias, 1.0);
@@ -423,7 +423,7 @@ public class LogicalPlan {
         throw new ParsingException("Unknown table in WHERE clause " + lj.t2Alias);
       
       DbIterator j;
-      j = jo.instantiateJoin(lj,plan1,plan2);
+      j = jo.instantiateJoin(lj, plan1, plan2);
       subplanMap.put(t1name, j);
 
       if (!isSubqueryJoin) {
@@ -445,7 +445,7 @@ public class LogicalPlan {
       throw new ParsingException("Query does not include join expressions joining all nodes!");
     }
     
-    DbIterator node = (DbIterator)(subplanMap.entrySet().iterator().next().getValue());
+    DbIterator node = (DbIterator) (subplanMap.entrySet().iterator().next().getValue());
 
     // Walk the select list, to determine order in which to project output fields.
     ArrayList<Integer> outFields = new ArrayList<Integer>();
@@ -453,7 +453,7 @@ public class LogicalPlan {
     for (int i = 0; i < selectList.size(); i++) {
       LogicalSelectListNode si = selectList.elementAt(i);
       if (si.aggOp != null) {
-        outFields.add(groupByField!=null?1:0);
+        outFields.add(groupByField != null ? 1 : 0);
         TupleDesc td = node.getTupleDesc();
         try {
           td.fieldNameToIndex(si.fname);
@@ -462,35 +462,35 @@ public class LogicalPlan {
         }
         outTypes.add(Type.INT_TYPE);  // The type of all aggregate functions is INT.
       } else if (hasAgg) {
-          if (groupByField == null) {
-            throw new ParsingException("Field " + si.fname + " does not appear in GROUP BY list");
-          }
-          outFields.add(0);
-          TupleDesc td = node.getTupleDesc();
-          int id;
-          try {
-            id = td.fieldNameToIndex(groupByField);
-          } catch (NoSuchElementException e) {
-            throw new ParsingException("Unknown field " +  groupByField + " in GROUP BY statement");
-          }
-          outTypes.add(td.getFieldType(id));
-      } else if (si.fname.equals("null.*")) {
-          TupleDesc td = node.getTupleDesc();
-          for (i = 0; i < td.numFields(); i++) {
-            outFields.add(i);
-            outTypes.add(td.getFieldType(i));
-          }
-      } else {
-          TupleDesc td = node.getTupleDesc();
-          int id;
-          try {
-            id = td.fieldNameToIndex(si.fname);
-          } catch (NoSuchElementException e) {
-            throw new ParsingException("Unknown field " +  si.fname + " in SELECT list");
-          }
-          outFields.add(id);
-          outTypes.add(td.getFieldType(id));
+        if (groupByField == null) {
+          throw new ParsingException("Field " + si.fname + " does not appear in GROUP BY list");
         }
+        outFields.add(0);
+        TupleDesc td = node.getTupleDesc();
+        int id;
+        try {
+          id = td.fieldNameToIndex(groupByField);
+        } catch (NoSuchElementException e) {
+          throw new ParsingException("Unknown field " +  groupByField + " in GROUP BY statement");
+        }
+        outTypes.add(td.getFieldType(id));
+      } else if (si.fname.equals("null.*")) {
+        TupleDesc td = node.getTupleDesc();
+        for (i = 0; i < td.numFields(); i++) {
+          outFields.add(i);
+          outTypes.add(td.getFieldType(i));
+        }
+      } else {
+        TupleDesc td = node.getTupleDesc();
+        int id;
+        try {
+          id = td.fieldNameToIndex(si.fname);
+        } catch (NoSuchElementException e) {
+          throw new ParsingException("Unknown field " +  si.fname + " in SELECT list");
+        }
+        outFields.add(id);
+        outTypes.add(td.getFieldType(id));
+      }
     }
 
     if (hasAgg) {
