@@ -1,8 +1,7 @@
 package simpledb;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -75,38 +74,25 @@ public class BufferPool {
   public Page getPage(TransactionId tid, PageId pid, Permissions perm)
       throws TransactionAbortedException, DbException {
     Page page;
-    boolean acquired = false;
 
-    synchronized (this) {
-      page = pool.get(pid);
+    // Try to acquire the lock for this transaction.
+    if (perm == Permissions.READ_ONLY) {
+      lockman.acquireShared(tid, pid);
+    } else {
+      lockman.acquireExclusive(tid, pid);
+    }
 
-      if (page != null) {
-        // Try to acquire the lock for this transaction.
-        if (perm == Permissions.READ_ONLY) {
-          acquired = lockman.acquireAsShared(tid, pid);
-        } else {
-          acquired = lockman.acquireAsExclusive(tid, pid);
-        }
-        if (!acquired) {
-          // TODO(foreverbell): Block this transaction rather than abort immediately.
-          throw new TransactionAbortedException();
-        }
-        return page;
-      } else if (pool.size() >= numPages) {
-        evictPage();
-      }
+    page = pool.get(pid);
+
+    if (page != null) {
+       return page;
     }
 
     page = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
-    if (perm == Permissions.READ_ONLY) {
-      lockman.acquireAsShared(tid, pid);
-    } else {
-      lockman.acquireAsExclusive(tid, pid);
+    while (pool.size() >= numPages) {
+      evictPage();
     }
-
-    synchronized (this) {
-      pool.put(pid, page);
-    }
+    pool.put(pid, page);
 
     return page;
   }
@@ -194,13 +180,11 @@ public class BufferPool {
     ArrayList<Page> ps;
 
     ps = Database.getCatalog().getDatabaseFile(tableId).insertTuple(tid, t);
-    synchronized (this) {
-      for (Page p : ps) {
-        p.markDirty(true, tid);
-        // Reinsert the dirty page into buffer pool, this is necessary if we
-        // want to evict a clean page locked by a running transaction.
-        pool.put(p.getId(), p);
-      }
+    for (Page p : ps) {
+      p.markDirty(true, tid);
+      // Reinsert the dirty page into buffer pool, this is necessary if we
+      // want to evict a clean page locked by a running transaction.
+      pool.put(p.getId(), p);
     }
   }
 
@@ -224,13 +208,11 @@ public class BufferPool {
     ArrayList<Page> ps;
 
     ps = Database.getCatalog().getDatabaseFile(tableId).deleteTuple(tid, t);
-    synchronized (this) {
-      for (Page p : ps) {
-        p.markDirty(true, tid);
-        // Reinsert the dirty page into buffer pool, this is necessary if we
-        // want to evict a clean page locked by a running transaction.
-        pool.put(p.getId(), p);
-      }
+    for (Page p : ps) {
+      p.markDirty(true, tid);
+      // Reinsert the dirty page into buffer pool, this is necessary if we
+      // want to evict a clean page locked by a running transaction.
+      pool.put(p.getId(), p);
     }
   }
 
@@ -276,8 +258,17 @@ public class BufferPool {
 
   /** Write all pages of the specified transaction to disk. */
   public synchronized void flushPages(TransactionId tid) throws IOException {
-    // some code goes here
-    // not necessary for lab1|lab2
+    Iterator<Entry<PageId, Page>> iter = pool.entrySet().iterator();
+
+    while (iter.hasNext()) {
+      Entry<PageId, Page> next = iter.next();
+      PageId pid = next.getKey();
+      Page p = next.getValue();
+
+      if (tid.equals(p.isDirty())) {
+        flushPage(pid);
+      }
+    }
   }
 
   /**
