@@ -301,5 +301,9 @@ public class BufferPool {
       // TODO(foreverbell): Comment on the reason.
       pool.remove(pid);
     }
+
+    if (pool.size() >= numPages) {
+      throw new DbException("running out buffer pool.");
+    }
   }
 }
