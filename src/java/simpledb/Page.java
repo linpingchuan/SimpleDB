@@ -30,7 +30,7 @@ public interface Page {
   public TransactionId isDirty();
 
   /**
-   * Set the dirty state of this page as dirtied by a particular transaction
+   * Set the dirty state of this page as dirtied by a particular transaction.
    */
   public void markDirty(boolean dirty, TransactionId tid);
 
