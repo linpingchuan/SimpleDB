@@ -128,8 +128,7 @@ public class BufferPool {
    * @param tid The ID of the transaction requesting the unlock.
    */
   public void transactionComplete(TransactionId tid) throws IOException {
-    // some code goes here
-    // not necessary for lab1|lab2
+    transactionComplete(tid, true);
   }
 
   /**

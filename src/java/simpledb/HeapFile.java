@@ -109,12 +109,22 @@ public class HeapFile implements DbFile {
 
     for (int i = 0; i < numPages.get(); ++i) {
       HeapPage page = (HeapPage) Database.getBufferPool().getPage(tid,
-          new HeapPageId(tableId, i), Permissions.READ_WRITE);
+          new HeapPageId(tableId, i), Permissions.READ_ONLY);
 
       if (page.getNumEmptySlots() > 0) {
+        // Upgrade the shared lock to exclusive.
+        page = (HeapPage) Database.getBufferPool().getPage(tid,
+            new HeapPageId(tableId, i), Permissions.READ_WRITE);
         page.insertTuple(t);
         ret.add(page);
         return ret;
+      } else {
+        // If a transaction t finds no free slot on a page p, t may immediately
+        // release the lock on p. Although this apparently contradicts the rules
+        // of two-phase locking, it is ok because t did not use any data from
+        // the page, such that a concurrent transaction t' which updated p
+        // cannot possibly effect the answer or outcome of t.
+        Database.getBufferPool().releasePage(tid, new HeapPageId(tableId, i));
       }
     }
 
