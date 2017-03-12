@@ -1,7 +1,6 @@
 package simpledb;
 
-import java.util.HashSet;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.*;
 
 class LockManager {
 
@@ -70,10 +69,10 @@ class LockManager {
     }
   }
 
-  private final ConcurrentHashMap<PageId, LockState> lock;
+  private final HashMap<PageId, LockState> lock;
 
   public LockManager() {
-    lock = new ConcurrentHashMap<PageId, LockState>();
+    lock = new HashMap<PageId, LockState>();
   }
 
   public synchronized boolean holdsLock(TransactionId tid, PageId pid) {
@@ -89,6 +88,13 @@ class LockManager {
     LockState lockstate = lock.get(pid);
 
     if (lockstate != null) {
+      lockstate.release(tid);
+    }
+  }
+
+  // 2-PL requires us to release all locks related to one transaction atomically.
+  public synchronized void releaseAll(TransactionId tid) {
+    for (LockState lockstate : lock.values()) {
       lockstate.release(tid);
     }
   }
