@@ -3,8 +3,9 @@ dist/
 log
 
 *.dat
-*.txt
+*.db
 *.schema
+*.txt
 
 .classpath
 .project

@@ -49,12 +49,13 @@ public class Transaction {
         Database.getLogFile().logAbort(tid);
       } else {
         // Write all the dirty pages for this transaction out.
+        // TODO(foreverbell): flushPages(tid) here is weird.
         Database.getBufferPool().flushPages(tid);
         Database.getLogFile().logCommit(tid);
       }
 
       try {
-        // release locks
+        // Release locks.
         Database.getBufferPool().transactionComplete(tid, !abort);
       } catch (IOException e) {
         e.printStackTrace();

@@ -293,7 +293,6 @@ public class HeapPage implements Page {
       lastDirty = tid;
     } else {
       lastDirty = null;
-      setBeforeImage();
     }
   }
 

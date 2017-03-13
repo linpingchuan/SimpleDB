@@ -149,7 +149,10 @@ public class BufferPool {
       if (tid.equals(p.isDirty())) {
         if (commit) {
           flushPage(pid);
-        } else {
+          // Use current page contents as the before-image for the next
+          // transaction that modifies this page.
+          p.setBeforeImage();
+        } else { // abort
           pool.put(pid, p.getBeforeImage());
         }
       }
@@ -224,9 +227,7 @@ public class BufferPool {
    */
   public synchronized void flushAllPages() throws IOException {
     for (Page page : pool.values()) {
-      Database.getCatalog().getDatabaseFile(
-          page.getId().getTableId()).writePage(page);
-      page.markDirty(false, null);
+      flushPage(page.getId());
     }
   }
 
@@ -252,23 +253,35 @@ public class BufferPool {
     if (page == null) {
       throw new IOException("page not in buffer pool.");
     }
+
+    // Append an update record to the log, with a before-image and after-image.
+    TransactionId dirtier = page.isDirty();
+    if (dirtier != null) {
+      Database.getLogFile().logWrite(dirtier, page.getBeforeImage(), page);
+      Database.getLogFile().force();
+    }
+
     Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(page);
     page.markDirty(false, null);
   }
 
   /** Write all pages of the specified transaction to disk. */
   public synchronized void flushPages(TransactionId tid) throws IOException {
-    Iterator<Entry<PageId, Page>> iter = pool.entrySet().iterator();
+    // TODO(foreverbell): This function is weird (invoked by Transaction.java)
+    // when commiting a transaction, but should transactionComplete be in charge
+    // of this job?
 
-    while (iter.hasNext()) {
-      Entry<PageId, Page> next = iter.next();
-      PageId pid = next.getKey();
-      Page p = next.getValue();
-
-      if (tid.equals(p.isDirty())) {
-        flushPage(pid);
-      }
-    }
+//  Iterator<Entry<PageId, Page>> iter = pool.entrySet().iterator();
+//
+//  while (iter.hasNext()) {
+//    Entry<PageId, Page> next = iter.next();
+//    PageId pid = next.getKey();
+//    Page p = next.getValue();
+//
+//    if (tid.equals(p.isDirty())) {
+//      flushPage(pid);
+//    }
+//  }
   }
 
   /**
