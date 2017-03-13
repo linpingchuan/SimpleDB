@@ -254,47 +254,45 @@ class LockManager {
       throws TransactionAbortedException {
     mutex.lock();
 
-    try {
-      LockState lockstate = lock.get(pid);
+    LockState lockstate = lock.get(pid);
 
-      if (lockstate == null) {
-        lockstate = new LockState(mutex, graph);
-        lock.put(pid, lockstate);
-      }
-
-      while (!lockstate.acquireShared(tid)) {
-        if (detectDeadLock(lockstate, tid)) {
-          throw new TransactionAbortedException();
-        } else {
-          lockstate.wait(true, tid);
-        }
-      }
-    } finally {
-      mutex.unlock();
+    if (lockstate == null) {
+      lockstate = new LockState(mutex, graph);
+      lock.put(pid, lockstate);
     }
+
+    while (!lockstate.acquireShared(tid)) {
+      if (detectDeadLock(lockstate, tid)) {
+        mutex.unlock();
+        throw new TransactionAbortedException();
+      } else {
+        lockstate.wait(true, tid);
+      }
+    }
+
+    mutex.unlock();
   }
 
   public void acquireExclusive(TransactionId tid, PageId pid)
       throws TransactionAbortedException {
     mutex.lock();
 
-    try {
-      LockState lockstate = lock.get(pid);
+    LockState lockstate = lock.get(pid);
 
-      if (lockstate == null) {
-        lockstate = new LockState(mutex, graph);
-        lock.put(pid, lockstate);
-      }
-
-      while (!lockstate.acquireExclusive(tid)) {
-        if (detectDeadLock(lockstate, tid)) {
-          throw new TransactionAbortedException();
-        } else {
-          lockstate.wait(false, tid);
-        }
-      }
-    } finally {
-      mutex.unlock();
+    if (lockstate == null) {
+      lockstate = new LockState(mutex, graph);
+      lock.put(pid, lockstate);
     }
+
+    while (!lockstate.acquireExclusive(tid)) {
+      if (detectDeadLock(lockstate, tid)) {
+        mutex.unlock();
+        throw new TransactionAbortedException();
+      } else {
+        lockstate.wait(false, tid);
+      }
+    }
+
+    mutex.unlock();
   }
 }
