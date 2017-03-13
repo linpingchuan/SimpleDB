@@ -151,7 +151,7 @@ public class LogFile {
 
     synchronized (Database.getBufferPool()) {
 
-      synchronized(this) {
+      synchronized (this) {
         preAppend();
         Debug.log("ABORT");
         // Should we verify that this is a live transaction?
@@ -288,7 +288,7 @@ public class LogFile {
 
       // Debug.log("READ PAGE OF TYPE " + pageClassName + ", table = "
       //   + newPage.getId().getTableId() + ", page = " + newPage.getId().pageno());
-    } catch (ClassNotFoundException e){
+    } catch (ClassNotFoundException e) {
       e.printStackTrace();
       throw new IOException();
     } catch (InstantiationException e) {
@@ -312,7 +312,7 @@ public class LogFile {
   public synchronized void logXactionBegin(TransactionId tid)
       throws IOException {
     Debug.log("BEGIN");
-    if(tidToFirstLogRecord.get(tid.getId()) != null){
+    if (tidToFirstLogRecord.get(tid.getId()) != null) {
       System.err.printf("logXactionBegin: already began this tid\n");
       throw new IOException("double logXactionBegin()");
     }
@@ -333,6 +333,7 @@ public class LogFile {
       synchronized (this) {
         // Debug.log("CHECKPOINT, offset = " + raf.getFilePointer());
         preAppend();
+
         long startCpOffset, endCpOffset;
         Set<Long> keys = tidToFirstLogRecord.keySet();
         Iterator<Long> els = keys.iterator();
@@ -479,58 +480,82 @@ public class LogFile {
     synchronized (Database.getBufferPool()) {
       synchronized (this) {
         preAppend();
-
-        Long first = tidToFirstLogRecord.get(tid.getId());
-
-        if (first == null) {
+        if (!rollbackImpl(tid.getId())) {
           throw new NoSuchElementException();
-        }
-        raf.seek(first);
-
-        HashMap<PageId, Page> rollbacks = new HashMap<PageId, Page>();
-
-        while (true) {
-          try {
-            int type = raf.readInt();
-            long record_tid = raf.readLong();
-
-            switch (type) {
-            case UPDATE_RECORD:
-              Page before = readPageData(raf);
-              Page after = readPageData(raf);
-
-              assert before.getId().equals(after.getId());
-              if (record_tid == tid.getId() && !rollbacks.containsKey(before.getId())) {
-                rollbacks.put(before.getId(), before);
-              }
-              break;
-            case CHECKPOINT_RECORD:
-              int numXactions = raf.readInt();
-              while (numXactions-- > 0) {
-                raf.readLong();
-                raf.readLong();
-              }
-              break;
-            }
-
-            raf.readLong();
-          } catch (EOFException e) {
-            break;
-          }
-        }
-
-        Iterator<Entry<PageId, Page>> iter = rollbacks.entrySet().iterator();
-        while (iter.hasNext()) {
-          Entry<PageId, Page> e = iter.next();
-          PageId pid = e.getKey();
-          Page p = e.getValue();
-          int tableid = pid.getTableId();
-
-          Database.getBufferPool().discardPage(pid);
-          Database.getCatalog().getDatabaseFile(tableid).writePage(p);
         }
       }
     }
+  }
+
+  private boolean rollbackImpl(long tid) throws IOException {
+    Long first = tidToFirstLogRecord.get(tid);
+
+    if (first == null) {
+      // This is an already committed or aborted transaction.
+      return false;
+    }
+    raf.seek(first);
+
+    HashMap<PageId, Page> rollbacks = new HashMap<PageId, Page>();
+    boolean aborted = false;
+
+    while (!aborted) {
+      try {
+        int type = raf.readInt();
+        long record_tid = raf.readLong();
+
+        switch (type) {
+        case BEGIN_RECORD:
+          break;
+        case COMMIT_RECORD:
+          if (tid == record_tid) {
+            throw new RuntimeException("inconsistent log, saw COMMIT");
+          }
+          break;
+        case ABORT_RECORD:
+          if (tid == record_tid) {
+            aborted = true;
+          }
+          break;
+        case UPDATE_RECORD:
+          Page before = readPageData(raf);
+          Page after = readPageData(raf);
+
+          assert before.getId().equals(after.getId());
+          // Record all original (before) page data related to this transaction.
+          if (record_tid == tid && !rollbacks.containsKey(before.getId())) {
+            rollbacks.put(before.getId(), before);
+          }
+          break;
+        case CHECKPOINT_RECORD:
+          int numXactions = raf.readInt();
+          while (numXactions-- > 0) {
+            raf.readLong();
+            raf.readLong();
+          }
+          break;
+        default:
+          assert false;
+        }
+
+        raf.readLong();
+      } catch (EOFException e) {
+        break;
+      }
+    }
+
+    Iterator<Entry<PageId, Page>> iter = rollbacks.entrySet().iterator();
+    while (iter.hasNext()) {
+      Entry<PageId, Page> e = iter.next();
+      PageId pid = e.getKey();
+      Page p = e.getValue();
+      int tableid = pid.getTableId();
+
+      Database.getBufferPool().discardPage(pid);
+      Database.getCatalog().getDatabaseFile(tableid).writePage(p);
+    }
+
+    return true;
   }
 
   /**
@@ -556,9 +581,87 @@ public class LogFile {
     synchronized (Database.getBufferPool()) {
       synchronized (this) {
         recoveryUndecided = false;
-        // some code goes here
+
+        raf.seek(0);
+        long cpLoc = raf.readLong();
+
+        // Restore tidToFirstLogRecord from the checkpoint so we can rollback
+        // the lost transactions later.
+        tidToFirstLogRecord.clear();
+
+        if (cpLoc != -1) {
+          raf.seek(cpLoc);
+
+          int cpType = raf.readInt();
+          raf.readLong();
+          if (cpType != CHECKPOINT_RECORD) {
+            throw new RuntimeException(
+                "checkpoint pointer does not point to checkpoint record");
+          }
+
+          int numXactions = raf.readInt();
+          while (numXactions-- > 0) {
+            long xid = raf.readLong();
+            long xoffset = raf.readLong();
+            tidToFirstLogRecord.put(xid, xoffset);
+          }
+
+          raf.readLong();
+        }
+
+        while (true) {
+          try {
+            long cur_offset = raf.getFilePointer();
+            int type = raf.readInt();
+            long record_tid = raf.readLong();
+
+            switch (type) {
+            case CHECKPOINT_RECORD:
+              throw new RuntimeException("inconsistent log, saw CHECKPOINT");
+            case BEGIN_RECORD:
+              if (tidToFirstLogRecord.containsKey(record_tid)) {
+                throw new RuntimeException("inconsistent log, duplicate BEGIN");
+              }
+              tidToFirstLogRecord.put(record_tid, cur_offset);
+              break;
+            case ABORT_RECORD:
+              long offset = raf.getFilePointer();
+              rollbackImpl(record_tid);
+              raf.seek(offset);
+              tidToFirstLogRecord.remove(record_tid);
+              break;
+            case COMMIT_RECORD:
+              tidToFirstLogRecord.remove(record_tid);
+              break;
+            case UPDATE_RECORD:
+              Page before = readPageData(raf);
+              Page after = readPageData(raf);
+              int tableid = after.getId().getTableId();
+
+              assert before.getId().equals(after.getId());
+              Database.getCatalog().getDatabaseFile(tableid).writePage(after);
+              break;
+            default:
+              assert false;
+            }
+
+            raf.readLong();
+          } catch (EOFException e) {
+            break;
+          }
+        }
+
+        // Transactions in tidToFirstLogRecord are all lost transactions, rollback.
+        ArrayList<Long> xids = new ArrayList<Long>();
+        for (long xid : tidToFirstLogRecord.keySet()) {
+          xids.add(xid);
+        }
+        for (long xid : xids) {
+          logAbort(new TransactionId(xid));
+          rollbackImpl(xid);
+        }
       }
-     }
+    }
   }
 
   /** Print out a human readable represenation of the log. */

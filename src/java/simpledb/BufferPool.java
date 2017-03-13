@@ -149,6 +149,7 @@ public class BufferPool {
       if (tid.equals(p.isDirty())) {
         if (commit) {
           flushPage(pid);
+          p.markDirty(false, null);
           // Use current page contents as the before-image for the next
           // transaction that modifies this page.
           p.setBeforeImage();
@@ -262,7 +263,9 @@ public class BufferPool {
     }
 
     Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(page);
-    page.markDirty(false, null);
+
+    // Intended being dirty, waiting to be reaped by transactionComplete.
+    // page.markDirty(false, null);
   }
 
   /** Write all pages of the specified transaction to disk. */
@@ -297,12 +300,10 @@ public class BufferPool {
       PageId pid = next.getKey();
       Page p = next.getValue();
 
+      // NO STEAL policy implies we should never evict dirty pages.
       if (p.isDirty() != null) {
         continue;
       }
-      // Evicting a clean page that is locked by a running transaction is OK
-      // when using NO STEAL.
-      // TODO(foreverbell): Comment on the reason.
       pool.remove(pid);
     }
 
