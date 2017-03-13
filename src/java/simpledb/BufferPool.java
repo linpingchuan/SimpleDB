@@ -238,8 +238,8 @@ public class BufferPool {
    * keep a rolled back page in its cache.
    */
   public synchronized void discardPage(PageId pid) {
-    // some code goes here
-    // only necessary for lab5
+    // TODO(foreverbell): lockman?
+    pool.remove(pid);
   }
 
   /**

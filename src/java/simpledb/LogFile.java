@@ -2,6 +2,7 @@ package simpledb;
 
 import java.io.*;
 import java.util.*;
+import java.util.Map.Entry;
 import java.lang.reflect.*;
 
 /**
@@ -55,7 +56,7 @@ import java.lang.reflect.*;
  * 
  * <li> ABORT, COMMIT, and BEGIN records contain no additional data.
  * 
- * <li>UPDATE RECORDS consist of two entries, a before image and an
+ * <li> UPDATE RECORDS consist of two entries, a before image and an
  * after image.  These images are serialized Page objects, and can be
  * accessed with the LogFile.readPageData() and LogFile.writePageData()
  * methods.  See LogFile.print() for an example.
@@ -86,7 +87,7 @@ public class LogFile {
   final static int INT_SIZE = 4;
   final static int LONG_SIZE = 8;
 
-  long currentOffset = -1;// protected by this.
+  long currentOffset = -1; // protected by this.
   int totalRecords = 0; // for PatchTest, protected by this.
 
   HashMap<Long, Long> tidToFirstLogRecord = new HashMap<Long, Long>();
@@ -125,7 +126,7 @@ public class LogFile {
   // the log.
   void preAppend() throws IOException {
     totalRecords++;
-    if (recoveryUndecided){
+    if (recoveryUndecided) {
       recoveryUndecided = false;
       raf.seek(0);
       raf.setLength(0);
@@ -152,7 +153,7 @@ public class LogFile {
 
       synchronized(this) {
         preAppend();
-        // Debug.log("ABORT");
+        Debug.log("ABORT");
         // Should we verify that this is a live transaction?
 
         // Must do this here, since rollback only works for
@@ -215,8 +216,8 @@ public class LogFile {
     raf.writeInt(UPDATE_RECORD);
     raf.writeLong(tid.getId());
 
-    writePageData(raf,before);
-    writePageData(raf,after);
+    writePageData(raf, before);
+    writePageData(raf, after);
     raf.writeLong(currentOffset);
     currentOffset = raf.getFilePointer();
 
@@ -437,7 +438,7 @@ public class LogFile {
           }
           break;
         case BEGIN_RECORD:
-          tidToFirstLogRecord.put(record_tid,newStart);
+          tidToFirstLogRecord.put(record_tid, newStart);
           break;
         }
 
@@ -469,16 +470,65 @@ public class LogFile {
    * 
    * To preserve transaction semantics, this should not be called on
    * transactions that have already committed (though this may not be enforced
-   * by this method.)
+   * by this method).
    *
    * @param tid The transaction to rollback.
    */
   public void rollback(TransactionId tid)
-    throws NoSuchElementException, IOException {
+      throws NoSuchElementException, IOException {
     synchronized (Database.getBufferPool()) {
-      synchronized(this) {
+      synchronized (this) {
         preAppend();
-        // some code goes here
+
+        Long first = tidToFirstLogRecord.get(tid.getId());
+
+        if (first == null) {
+          throw new NoSuchElementException();
+        }
+        raf.seek(first);
+
+        HashMap<PageId, Page> rollbacks = new HashMap<PageId, Page>();
+
+        while (true) {
+          try {
+            int type = raf.readInt();
+            long record_tid = raf.readLong();
+
+            switch (type) {
+            case UPDATE_RECORD:
+              Page before = readPageData(raf);
+              Page after = readPageData(raf);
+
+              assert before.getId().equals(after.getId());
+              if (record_tid == tid.getId() && !rollbacks.containsKey(before.getId())) {
+                rollbacks.put(before.getId(), before);
+              }
+              break;
+            case CHECKPOINT_RECORD:
+              int numXactions = raf.readInt();
+              while (numXactions-- > 0) {
+                raf.readLong();
+                raf.readLong();
+              }
+              break;
+            }
+
+            raf.readLong();
+          } catch (EOFException e) {
+            break;
+          }
+        }
+
+        Iterator<Entry<PageId, Page>> iter = rollbacks.entrySet().iterator();
+        while (iter.hasNext()) {
+          Entry<PageId, Page> e = iter.next();
+          PageId pid = e.getKey();
+          Page p = e.getValue();
+          int tableid = pid.getTableId();
+
+          Database.getBufferPool().discardPage(pid);
+          Database.getCatalog().getDatabaseFile(tableid).writePage(p);
+        }
       }
     }
   }
