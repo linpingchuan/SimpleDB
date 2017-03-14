@@ -147,6 +147,7 @@ public class BufferPool {
       Page p = next.getValue();
 
       if (tid.equals(p.isDirty())) {
+        // Some tests require flushing dirty pages on transactionComplete.
         if (commit) {
           flushPage(pid);
           p.markDirty(false, null);
@@ -239,7 +240,6 @@ public class BufferPool {
    * keep a rolled back page in its cache.
    */
   public synchronized void discardPage(PageId pid) {
-    // TODO(foreverbell): lockman?
     pool.remove(pid);
   }
 
@@ -264,27 +264,27 @@ public class BufferPool {
 
     Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(page);
 
-    // Intended being dirty, waiting to be reaped by transactionComplete.
+    // Intended being dirty, waiting to be reapped by upstream calls.
     // page.markDirty(false, null);
   }
 
   /** Write all pages of the specified transaction to disk. */
   public synchronized void flushPages(TransactionId tid) throws IOException {
-    // TODO(foreverbell): This function is weird (invoked by Transaction.java)
-    // when commiting a transaction, but should transactionComplete be in charge
-    // of this job?
+    Iterator<Entry<PageId, Page>> iter = pool.entrySet().iterator();
 
-//  Iterator<Entry<PageId, Page>> iter = pool.entrySet().iterator();
-//
-//  while (iter.hasNext()) {
-//    Entry<PageId, Page> next = iter.next();
-//    PageId pid = next.getKey();
-//    Page p = next.getValue();
-//
-//    if (tid.equals(p.isDirty())) {
-//      flushPage(pid);
-//    }
-//  }
+    while (iter.hasNext()) {
+      Entry<PageId, Page> next = iter.next();
+      PageId pid = next.getKey();
+      Page p = next.getValue();
+
+      if (tid.equals(p.isDirty())) {
+        flushPage(pid);
+        p.markDirty(false, null);
+        // Use current page contents as the before-image for the next
+        // transaction that modifies this page.
+        p.setBeforeImage();
+      }
+    }
   }
 
   /**

@@ -48,7 +48,6 @@ public class Transaction {
         Database.getLogFile().logAbort(tid);
       } else {
         // Write all the dirty pages for this transaction out.
-        // TODO(foreverbell): flushPages(tid) here is weird.
         Database.getBufferPool().flushPages(tid);
         Database.getLogFile().logCommit(tid);
       }

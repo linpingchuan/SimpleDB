@@ -625,15 +625,24 @@ public class LogFile {
               tidToFirstLogRecord.put(record_tid, cur_offset);
               break;
             case ABORT_RECORD:
+              if (!tidToFirstLogRecord.containsKey(record_tid)) {
+                throw new RuntimeException("inconsistent log, orphan ABORT");
+              }
               long offset = raf.getFilePointer();
               rollbackImpl(record_tid);
               raf.seek(offset);
               tidToFirstLogRecord.remove(record_tid);
               break;
             case COMMIT_RECORD:
+              if (!tidToFirstLogRecord.containsKey(record_tid)) {
+                throw new RuntimeException("inconsistent log, orphan COMMIT");
+              }
               tidToFirstLogRecord.remove(record_tid);
               break;
             case UPDATE_RECORD:
+              if (!tidToFirstLogRecord.containsKey(record_tid)) {
+                throw new RuntimeException("inconsistent log, orphan UPDATE_RECORD");
+              }
               Page before = readPageData(raf);
               Page after = readPageData(raf);
               int tableid = after.getId().getTableId();
@@ -666,7 +675,7 @@ public class LogFile {
 
   /** Print out a human readable represenation of the log. */
   public void print() throws IOException {
-    // some code goes here
+    throw new IOException("not implenmented");
   }
 
   public synchronized void force() throws IOException {
